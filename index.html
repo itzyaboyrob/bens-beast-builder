@@ -32,6 +32,7 @@
   window._bbDocRef = DOC_REF;
   window._bbGetDoc = getDoc;
   window._bbSetDoc = setDoc;
+  window._bbDoc = doc;
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2241,17 +2242,44 @@ function loadMotivation() {
   const el = document.getElementById('motivationText');
   if (!el) return;
 
-  // Check cache first
+  const cacheKey = getMotivationCacheKey();
+
+  // 1. Check Firestore first (shared across devices)
+  async function checkFirestoreAndLoad() {
+    try {
+      if (window._bbGetDoc && window._bbDB) {
+        const { getDoc, doc, setDoc } = { getDoc: window._bbGetDoc, doc: window._bbDocRef, setDoc: window._bbSetDoc };
+        const motRef = window._bbDoc(window._bbDB, 'ben', 'motivation');
+        const snap = await window._bbGetDoc(motRef);
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data.date === cacheKey && data.message) {
+            el.textContent = data.message;
+            el.classList.remove('motivation-placeholder');
+            try { localStorage.setItem(cacheKey, data.message); } catch(e) {}
+            return;
+          }
+        }
+      }
+    } catch(e) {}
+    // Nothing in Firestore for today — generate new
+    generateMotivation(el, cacheKey);
+  }
+
+  // 2. Show localStorage instantly while Firestore loads
   try {
-    const cached = localStorage.getItem(getMotivationCacheKey());
+    const cached = localStorage.getItem(cacheKey);
     if (cached) {
       el.textContent = cached;
       el.classList.remove('motivation-placeholder');
-      return;
+      return; // localStorage hit — skip Firestore check
     }
   } catch(e) {}
 
-  // Build context from Ben's current progress
+  checkFirestoreAndLoad();
+}
+
+function generateMotivation(el, cacheKey) {
   const active = findActiveDay();
   const totalDays = 42;
   const completedDays = Object.keys(state.completed).length;
@@ -2260,8 +2288,6 @@ function loadMotivation() {
   const weekMeta = WEEK_META[weekNum - 1];
   const daysOfWeek = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const todayName = daysOfWeek[new Date().getDay()];
-
-  // Figure out today's workout type
   const todayData = active ? PROGRAM[active.week][active.dayIndex] : null;
   const workoutType = todayData ? todayData.title : 'Rest Day';
   const isRestDay = todayData ? !!todayData.rest : true;
@@ -2271,13 +2297,10 @@ function loadMotivation() {
     'Write a short daily motivational message in 2-3 sentences. ' +
     'Be energetic, fun, age-appropriate, and specific to where he is in the program. ' +
     'No em dashes. No hashtags. Do not start with his name. Use simple language an 11-year-old would love. ' +
-
     'Today is ' + todayName + '. Week ' + weekNum + ' of 6 (phase: ' + weekMeta.title + '). ' +
     'Day ' + dayNum + ' of the week. ' + completedDays + ' of ' + totalDays + ' total days completed. ' +
     (isRestDay ? 'Today is a rest day - remind him rest is part of getting stronger.' : 'Todays workout: ' + workoutType + '. Get him hyped for it!') + ' ' +
-
     'Adjust tone: weeks 1-2 focus on building the habit, weeks 3-4 on momentum, weeks 5-6 on finishing strong like a beast. ' +
-
     'Respond ONLY with a JSON object like: {"message":"your message here"}';
 
   fetch('https://pound-for-pound-api-ejdqaeehcwb7c4fv.eastus-01.azurewebsites.net/api/motivation', {
@@ -2300,9 +2323,14 @@ function loadMotivation() {
       const msg = ai.message || MOTIVATION_FALLBACK;
       el.textContent = msg;
       el.classList.remove('motivation-placeholder');
-      try { localStorage.setItem(getMotivationCacheKey(), msg); } catch(e) {}
+      // Save to localStorage and Firestore
+      try { localStorage.setItem(cacheKey, msg); } catch(e) {}
+      try {
+        if (window._bbSetDoc && window._bbDoc && window._bbDB) {
+          window._bbSetDoc(window._bbDoc(window._bbDB, 'ben', 'motivation'), { date: cacheKey, message: msg });
+        }
+      } catch(e) {}
     } catch(e) {
-      // Raw text fallback if JSON parse fails
       el.textContent = raw.length < 300 ? raw : MOTIVATION_FALLBACK;
       el.classList.remove('motivation-placeholder');
     }
