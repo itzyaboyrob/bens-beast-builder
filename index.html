@@ -1,0 +1,2273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0f2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Beast Builder">
+<title>Ben's Beast Builder</title>
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDsGYGVe5-LICr3rzl5GePRyJ4K5n8NRWE",
+    authDomain: "bens-beast-builder.firebaseapp.com",
+    projectId: "bens-beast-builder",
+    storageBucket: "bens-beast-builder.firebasestorage.app",
+    messagingSenderId: "855503271395",
+    appId: "1:855503271395:web:16ca16ad07608dd0455cd6"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const DOC_REF = doc(db, 'ben', 'progress');
+
+  // Expose to global scope for the main script
+  window._bbDB = db;
+  window._bbDocRef = DOC_REF;
+  window._bbGetDoc = getDoc;
+  window._bbSetDoc = setDoc;
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0a0f2e;
+    --navy-mid: #111936;
+    --navy-card: #161d3f;
+    --navy-light: #1e2850;
+    --red: #e8192c;
+    --red-dark: #c01020;
+    --red-glow: rgba(232, 25, 44, 0.3);
+    --white: #ffffff;
+    --off-white: #e8ecf5;
+    --muted: #6b7db3;
+    --gold: #ffd700;
+    --green: #22c55e;
+    --blue-accent: #3b82f6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    background: var(--navy);
+    color: var(--white);
+    font-family: 'Barlow', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── LOADING OVERLAY ─── */
+  #loadingOverlay {
+    position: fixed;
+    inset: 0;
+    background: var(--navy);
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+
+  .loading-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px;
+    letter-spacing: 3px;
+    color: var(--white);
+  }
+
+  .loading-spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--navy-light);
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  .loading-sub {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── HEADER ─── */
+  .app-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--navy);
+    border-bottom: 2px solid var(--red);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 30px rgba(232,25,44,0.15);
+  }
+
+  .header-logo {
+    display: flex;
+    flex-direction: column;
+    line-height: 1;
+  }
+
+  .header-logo .title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    letter-spacing: 2px;
+    color: var(--white);
+  }
+
+  .header-logo .subtitle {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    color: var(--red);
+    text-transform: uppercase;
+  }
+
+  .header-progress {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+
+  .progress-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .progress-bar-wrap {
+    width: 100px;
+    height: 6px;
+    background: var(--navy-light);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--red), #ff6b7a);
+    border-radius: 3px;
+    transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .progress-count {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  /* ─── MOTIVATIONAL BANNER ─── */
+  .motivation-banner {
+    background: linear-gradient(135deg, var(--navy-card), var(--navy-light));
+    border-left: 4px solid var(--red);
+    margin: 12px 12px 0;
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .motivation-banner::before {
+    content: '';
+    position: absolute;
+    top: -20px; right: -20px;
+    width: 80px; height: 80px;
+    background: var(--red-glow);
+    border-radius: 50%;
+    filter: blur(20px);
+  }
+
+  .motivation-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--red);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .motivation-text {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--off-white);
+    line-height: 1.3;
+  }
+
+  .motivation-placeholder {
+    font-style: italic;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  /* ─── WEEK TABS ─── */
+  .week-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 14px 12px 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .week-tabs::-webkit-scrollbar { display: none; }
+
+  .week-tab {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border: 2px solid var(--navy-light);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .week-tab.active {
+    background: var(--red);
+    border-color: var(--red);
+    color: var(--white);
+    box-shadow: 0 0 16px var(--red-glow);
+  }
+
+  .week-tab.complete {
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  .week-tab.complete.active {
+    background: var(--green);
+    color: var(--navy);
+  }
+
+  .week-tab .tab-check {
+    display: none;
+    position: absolute;
+    top: -4px; right: -4px;
+    width: 14px; height: 14px;
+    background: var(--green);
+    border-radius: 50%;
+    font-size: 8px;
+    align-items: center;
+    justify-content: center;
+    color: var(--navy);
+    font-weight: 900;
+  }
+
+  .week-tab.complete .tab-check { display: flex; }
+
+  /* ─── WEEK HEADER ─── */
+  .week-header {
+    padding: 6px 12px 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .week-badge {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 48px;
+    line-height: 1;
+    color: var(--white);
+  }
+
+  .week-badge span {
+    color: var(--red);
+  }
+
+  .week-info {
+    flex: 1;
+  }
+
+  .week-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--white);
+  }
+
+  .week-subtitle {
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .week-ring-wrap {
+    position: relative;
+    width: 52px; height: 52px;
+  }
+
+  .week-ring {
+    transform: rotate(-90deg);
+  }
+
+  .ring-bg { fill: none; stroke: var(--navy-light); stroke-width: 4; }
+  .ring-fill { fill: none; stroke: var(--red); stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease; }
+
+  .ring-pct {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--white);
+  }
+
+  /* ─── DAY CARDS ─── */
+  .days-list {
+    padding: 0 12px 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .day-card {
+    background: var(--navy-card);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--navy-light);
+    transition: border-color 0.3s;
+  }
+
+  .day-card.done {
+    border-color: rgba(34, 197, 94, 0.4);
+  }
+
+  .day-card.rest-card {
+    border-style: dashed;
+    opacity: 0.7;
+  }
+
+  .day-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 14px;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .day-number-badge {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: var(--navy-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    color: var(--muted);
+    flex-shrink: 0;
+    transition: all 0.3s;
+  }
+
+  .day-card.done .day-number-badge {
+    background: var(--green);
+    color: var(--navy);
+  }
+
+  .day-card.today .day-number-badge {
+    background: var(--red);
+    color: var(--white);
+    box-shadow: 0 0 12px var(--red-glow);
+  }
+
+  .day-info { flex: 1; }
+
+  .day-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 17px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--white);
+    line-height: 1;
+  }
+
+  .day-tags {
+    display: flex;
+    gap: 5px;
+    margin-top: 5px;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+
+  .tag-strength { background: rgba(59,130,246,0.2); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+  .tag-cardio { background: rgba(232,25,44,0.2); color: #fb7185; border: 1px solid rgba(232,25,44,0.3); }
+  .tag-agility { background: rgba(255,215,0,0.15); color: #fbbf24; border: 1px solid rgba(255,215,0,0.3); }
+  .tag-rest { background: rgba(107,125,179,0.2); color: var(--muted); border: 1px solid rgba(107,125,179,0.3); }
+  .tag-fun { background: rgba(167,139,250,0.2); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
+
+  .day-chevron {
+    font-size: 18px;
+    color: var(--muted);
+    transition: transform 0.3s;
+  }
+
+  .day-card.open .day-chevron { transform: rotate(180deg); }
+
+  .day-done-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--navy-light);
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    color: var(--muted);
+  }
+
+  .day-card.done .day-done-btn {
+    background: var(--green);
+    border-color: var(--green);
+    color: var(--navy);
+    font-size: 20px;
+  }
+
+  /* ─── DAY BODY ─── */
+  .day-body {
+    display: none;
+    padding: 0 14px 14px;
+    border-top: 1px solid var(--navy-light);
+  }
+
+  .day-card.open .day-body { display: block; }
+
+  .section-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--red);
+    margin: 12px 0 8px;
+  }
+
+  .exercise-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .exercise-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--navy);
+    border-radius: 8px;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+  }
+
+  .exercise-item.checked {
+    background: rgba(34,197,94,0.08);
+    border-color: rgba(34,197,94,0.2);
+  }
+
+  .exercise-text {
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px;
+    color: var(--off-white);
+    line-height: 1.3;
+    flex: 1;
+  }
+
+  .exercise-item.checked .exercise-text {
+    text-decoration: line-through;
+    color: var(--muted);
+  }
+
+  .exercise-reps {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--red);
+    flex-shrink: 0;
+  }
+
+  /* Per-set checkboxes */
+  .set-boxes {
+    display: flex;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+
+  .set-box {
+    width: 26px; height: 26px;
+    border-radius: 6px;
+    border: 2px solid var(--navy-light);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1);
+    color: transparent;
+    flex-shrink: 0;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .set-box:active { transform: scale(0.85); }
+
+  .set-box.done {
+    background: var(--green);
+    border-color: var(--green);
+    color: var(--navy);
+    font-size: 14px;
+  }
+
+  .set-box.done-animate {
+    animation: setCheck 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  @keyframes setCheck {
+    0%   { transform: scale(0.7); }
+    60%  { transform: scale(1.2); }
+    100% { transform: scale(1); }
+  }
+
+  .cardio-block {
+    background: var(--navy);
+    border-radius: 8px;
+    padding: 10px 12px;
+    border-left: 3px solid var(--red);
+    margin-top: 8px;
+  }
+
+  .cardio-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 6px;
+  }
+
+  .cardio-detail {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .cardio-detail span {
+    color: var(--off-white);
+  }
+
+  .rest-message {
+    padding: 16px 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .rest-message .emoji { font-size: 24px; }
+
+  .fun-cardio-options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .fun-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--navy);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--off-white);
+    cursor: pointer;
+    border: 1px solid var(--navy-light);
+    transition: all 0.2s;
+  }
+
+  .fun-option.selected {
+    background: rgba(167,139,250,0.1);
+    border-color: rgba(167,139,250,0.4);
+    color: #a78bfa;
+  }
+
+  .fun-option .opt-icon { font-size: 20px; }
+
+  .mark-done-wrap {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--navy-light);
+  }
+
+  .mark-done-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 10px;
+    border: none;
+    background: var(--red);
+    color: var(--white);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px var(--red-glow);
+  }
+
+  .mark-done-btn:active { transform: scale(0.97); }
+
+  .mark-done-btn.done-state {
+    background: var(--green);
+    box-shadow: 0 4px 20px rgba(34,197,94,0.3);
+  }
+
+  /* ─── TODAY BADGE ─── */
+  .today-pill {
+    background: var(--red);
+    color: var(--white);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 10px;
+    display: inline-block;
+    margin-left: 6px;
+    vertical-align: middle;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  /* ─── CONFETTI ─── */
+  .confetti-piece {
+    position: fixed;
+    width: 10px; height: 10px;
+    top: -10px;
+    opacity: 0;
+    animation: confettiFall 1s forwards;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  @keyframes confettiFall {
+    0% { opacity: 1; top: -10px; }
+    100% { opacity: 0; top: 100vh; }
+  }
+
+  /* ─── STREAK / STATS BAR ─── */
+  .stats-bar {
+    display: flex;
+    gap: 8px;
+    padding: 0 12px 12px;
+  }
+
+  .stat-chip {
+    flex: 1;
+    background: var(--navy-card);
+    border: 1px solid var(--navy-light);
+    border-radius: 10px;
+    padding: 10px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .stat-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    line-height: 1;
+    color: var(--white);
+  }
+
+  .stat-value.red { color: var(--red); }
+  .stat-value.gold { color: var(--gold); }
+
+  .stat-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* ─── BOTTOM NAV ─── */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--navy-card);
+    border-top: 1px solid var(--navy-light);
+    display: flex;
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+    z-index: 100;
+  }
+
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    color: var(--muted);
+    transition: color 0.2s;
+  }
+
+  .nav-btn.active { color: var(--red); }
+  .nav-btn .nav-icon { font-size: 22px; }
+  .nav-btn .nav-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* ─── TROPHY SCREEN ─── */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  .trophy-screen {
+    padding: 20px 12px 100px;
+    text-align: center;
+  }
+
+  .trophy-hero {
+    font-size: 80px;
+    margin: 20px 0 10px;
+    filter: drop-shadow(0 0 20px rgba(255,215,0,0.4));
+  }
+
+  .trophy-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 40px;
+    letter-spacing: 3px;
+    color: var(--white);
+    margin-bottom: 6px;
+  }
+
+  .trophy-sub {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 30px;
+  }
+
+  .trophy-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .trophy-card {
+    background: var(--navy-card);
+    border: 1px solid var(--navy-light);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .trophy-card .t-icon { font-size: 32px; }
+  .trophy-card .t-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px;
+    color: var(--white);
+    line-height: 1;
+  }
+  .trophy-card .t-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .week-progress-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+    margin: 0 0 20px;
+  }
+
+  .wpr-cell {
+    background: var(--navy-card);
+    border-radius: 8px;
+    padding: 10px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .wpr-cell .wk-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  .wpr-cell .wk-stars {
+    font-size: 16px;
+  }
+
+  .reset-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 10px;
+    border: 2px solid var(--navy-light);
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+
+  /* ─── WEEK 2 / 4 / 6 SAME NOTE ─── */
+  .same-as-note {
+    background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(59,130,246,0.05));
+    border: 1px solid rgba(59,130,246,0.2);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+
+  .same-as-note .san-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #60a5fa;
+    margin-bottom: 4px;
+  }
+
+  .same-as-note .san-text {
+    font-size: 13px;
+    color: var(--off-white);
+    line-height: 1.4;
+  }
+
+  /* ─── REST TIMER ─── */
+  .timer-fab {
+    position: fixed;
+    bottom: 80px;
+    right: 16px;
+    z-index: 200;
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--red);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 4px 20px var(--red-glow), 0 2px 8px rgba(0,0,0,0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+    transform: scale(0);
+    opacity: 0;
+  }
+
+  .timer-fab.visible {
+    transform: scale(1);
+    opacity: 1;
+    animation: fabPop 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  @keyframes fabPop {
+    from { transform: scale(0); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+
+  .timer-fab:active { transform: scale(0.92); }
+
+  .timer-fab .fab-label {
+    position: absolute;
+    bottom: -18px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* Modal overlay */
+  .timer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,15,46,0.85);
+    backdrop-filter: blur(8px);
+    z-index: 300;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+
+  .timer-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .timer-sheet {
+    width: 100%;
+    max-width: 480px;
+    background: var(--navy-card);
+    border-radius: 24px 24px 0 0;
+    padding: 20px 20px max(24px, env(safe-area-inset-bottom));
+    border-top: 2px solid var(--navy-light);
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.34,1.4,0.64,1);
+  }
+
+  .timer-overlay.open .timer-sheet {
+    transform: translateY(0);
+  }
+
+  .timer-drag-bar {
+    width: 40px; height: 4px;
+    background: var(--navy-light);
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+
+  .timer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .timer-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 2px;
+    color: var(--white);
+  }
+
+  .timer-close {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--navy-light);
+    border: none;
+    color: var(--muted);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Ring */
+  .timer-ring-wrap {
+    position: relative;
+    width: 180px; height: 180px;
+    margin: 0 auto 20px;
+  }
+
+  .timer-ring-svg {
+    transform: rotate(-90deg);
+    width: 180px; height: 180px;
+  }
+
+  .t-ring-bg { fill: none; stroke: var(--navy-light); stroke-width: 8; }
+  .t-ring-fill {
+    fill: none;
+    stroke: var(--red);
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-dasharray: 502;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s linear, stroke 0.3s;
+  }
+
+  .t-ring-fill.green { stroke: var(--green); }
+
+  .timer-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+  }
+
+  .timer-display {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 64px;
+    line-height: 1;
+    color: var(--white);
+    transition: color 0.3s;
+  }
+
+  .timer-display.done-color { color: var(--green); }
+
+  .timer-sub {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Preset buttons */
+  .timer-presets {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .preset-btn {
+    padding: 10px 4px;
+    border-radius: 10px;
+    border: 2px solid var(--navy-light);
+    background: transparent;
+    color: var(--off-white);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .preset-btn:active { transform: scale(0.95); }
+
+  .preset-btn.active-preset {
+    border-color: var(--red);
+    background: rgba(232,25,44,0.15);
+    color: var(--white);
+  }
+
+  /* Control buttons */
+  .timer-controls {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: 10px;
+  }
+
+  .t-ctrl {
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .t-ctrl:active { transform: scale(0.96); }
+
+  .t-ctrl-reset {
+    background: var(--navy-light);
+    color: var(--muted);
+    font-size: 20px;
+  }
+
+  .t-ctrl-main {
+    background: var(--red);
+    color: var(--white);
+    font-size: 20px;
+    box-shadow: 0 4px 16px var(--red-glow);
+  }
+
+  .t-ctrl-main.paused { background: var(--green); box-shadow: 0 4px 16px rgba(34,197,94,0.3); }
+
+  .t-ctrl-add {
+    background: var(--navy-light);
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  /* Done state */
+  .timer-done-flash {
+    animation: doneFlash 0.4s ease;
+  }
+
+  @keyframes doneFlash {
+    0%,100% { background: var(--navy-card); }
+    50% { background: rgba(34,197,94,0.15); }
+  }
+
+  /* mobile tweaks */
+  @media (max-width: 360px) {
+    .header-logo .title { font-size: 22px; }
+    .week-badge { font-size: 40px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div id="loadingOverlay">
+  <div class="loading-logo">🏋️ Beast Builder</div>
+  <div class="loading-spinner"></div>
+  <div class="loading-sub">Loading Ben's Progress...</div>
+</div>
+
+<!-- HEADER -->
+<header class="app-header">
+  <div class="header-logo">
+    <div class="title">🏋️ Beast Builder</div>
+    <div class="subtitle">Ben's 6-Week Program</div>
+  </div>
+  <div class="header-progress">
+    <div class="progress-label">Overall</div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="overallBar" style="width:0%"></div>
+    </div>
+    <div class="progress-count" id="overallCount">0 / 42 days</div>
+  </div>
+</header>
+
+<!-- SCREENS -->
+<div id="screenWorkout" class="screen active">
+
+  <!-- Motivation Banner -->
+  <div class="motivation-banner">
+    <div class="motivation-label">🔥 Today's Fuel</div>
+    <div class="motivation-text motivation-placeholder" id="motivationText">
+      Daily motivation coming soon — powered by AI!
+    </div>
+  </div>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar" style="margin-top:10px">
+    <div class="stat-chip">
+      <div class="stat-value red" id="statStreak">0</div>
+      <div class="stat-label">Day Streak</div>
+    </div>
+    <div class="stat-chip">
+      <div class="stat-value" id="statDone">0</div>
+      <div class="stat-label">Days Done</div>
+    </div>
+    <div class="stat-chip">
+      <div class="stat-value gold" id="statWeek">1</div>
+      <div class="stat-label">Cur. Week</div>
+    </div>
+  </div>
+
+  <!-- Week Tabs -->
+  <div class="week-tabs" id="weekTabs"></div>
+
+  <!-- Week Header -->
+  <div class="week-header">
+    <div class="week-badge" id="weekBadge">WK <span>1</span></div>
+    <div class="week-info">
+      <div class="week-title" id="weekTitle">Foundation Week</div>
+      <div class="week-subtitle" id="weekSubtitle">Build your base. Form > everything.</div>
+    </div>
+    <div class="week-ring-wrap">
+      <svg class="week-ring" width="52" height="52" viewBox="0 0 52 52">
+        <circle class="ring-bg" cx="26" cy="26" r="22"/>
+        <circle class="ring-fill" id="weekRing" cx="26" cy="26" r="22" stroke-dasharray="138.2" stroke-dashoffset="138.2"/>
+      </svg>
+      <div class="ring-pct" id="weekPct">0%</div>
+    </div>
+  </div>
+
+  <!-- Days List -->
+  <div class="days-list" id="daysList"></div>
+
+</div>
+
+<div id="screenTrophy" class="screen">
+  <div class="trophy-screen">
+    <div class="trophy-hero">🏆</div>
+    <div class="trophy-title">Beast Mode</div>
+    <div class="trophy-sub">Ben's Progress Report</div>
+
+    <div class="trophy-grid">
+      <div class="trophy-card">
+        <div class="t-icon">💪</div>
+        <div class="t-val" id="tDays">0</div>
+        <div class="t-label">Days Crushed</div>
+      </div>
+      <div class="trophy-card">
+        <div class="t-icon">🔥</div>
+        <div class="t-val" id="tStreak">0</div>
+        <div class="t-label">Best Streak</div>
+      </div>
+      <div class="trophy-card">
+        <div class="t-icon">⚡</div>
+        <div class="t-val" id="tWeeks">0</div>
+        <div class="t-label">Full Weeks</div>
+      </div>
+      <div class="trophy-card">
+        <div class="t-icon">🎯</div>
+        <div class="t-val" id="tPct">0%</div>
+        <div class="t-label">Complete</div>
+      </div>
+    </div>
+
+    <div style="font-family:'Barlow Condensed';font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Weekly Breakdown</div>
+    <div class="week-progress-row" id="weekProgressRow"></div>
+
+    <button class="reset-btn" onclick="confirmReset()">↺ Reset Program</button>
+  </div>
+</div>
+
+<!-- REST TIMER FAB -->
+<button class="timer-fab" id="timerFab" onclick="openTimer()" title="Rest Timer">
+  ⏱
+  <span class="fab-label">REST</span>
+</button>
+
+<!-- REST TIMER MODAL -->
+<div class="timer-overlay" id="timerOverlay" onclick="handleOverlayClick(event)">
+  <div class="timer-sheet" id="timerSheet">
+    <div class="timer-drag-bar"></div>
+    <div class="timer-header">
+      <div class="timer-title">⏱ Rest Timer</div>
+      <button class="timer-close" onclick="closeTimer()">✕</button>
+    </div>
+
+    <!-- Ring -->
+    <div class="timer-ring-wrap">
+      <svg class="timer-ring-svg" viewBox="0 0 180 180">
+        <circle class="t-ring-bg" cx="90" cy="90" r="80"/>
+        <circle class="t-ring-fill" id="tRingFill" cx="90" cy="90" r="80"/>
+      </svg>
+      <div class="timer-center">
+        <div class="timer-display" id="timerDisplay">1:00</div>
+        <div class="timer-sub" id="timerSub">READY</div>
+      </div>
+    </div>
+
+    <!-- Presets -->
+    <div class="timer-presets" id="timerPresets">
+      <button class="preset-btn" onclick="setPreset(30)">30s</button>
+      <button class="preset-btn active-preset" onclick="setPreset(60)">1:00</button>
+      <button class="preset-btn" onclick="setPreset(90)">1:30</button>
+      <button class="preset-btn" onclick="setPreset(120)">2:00</button>
+    </div>
+
+    <!-- Controls -->
+    <div class="timer-controls">
+      <button class="t-ctrl t-ctrl-reset" id="tBtnReset" onclick="resetTimer()">↺</button>
+      <button class="t-ctrl t-ctrl-main" id="tBtnMain" onclick="toggleTimer()">▶</button>
+      <button class="t-ctrl t-ctrl-add" onclick="addTime(15)">+15s</button>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="navWorkout" onclick="switchScreen('workout')">
+    <span class="nav-icon">🏋️</span>
+    <span class="nav-label">Train</span>
+  </button>
+  <button class="nav-btn" id="navTrophy" onclick="switchScreen('trophy')">
+    <span class="nav-icon">🏆</span>
+    <span class="nav-label">Stats</span>
+  </button>
+</nav>
+
+<script>
+// ═══════════════════════════════════════════
+// PROGRAM DATA
+// ═══════════════════════════════════════════
+const WEEK_META = [
+  { title: "Foundation Week",   subtitle: "Build your base. Form > everything.",         color: "#3b82f6" },
+  { title: "Level Up",          subtitle: "Smoother reps. +1 rep if it feels good!",    color: "#3b82f6" },
+  { title: "Power Phase",       subtitle: "More rounds, more time. Let's GO.",           color: "#eab308" },
+  { title: "Strength Builder",  subtitle: "+1 round or +2 min. Push it!",               color: "#eab308" },
+  { title: "Beast Mode",        subtitle: "3 sets, 3 rounds. You're an animal now.",     color: "#e8192c" },
+  { title: "Final Form",        subtitle: "Faster. Stronger. More confident. YOU.",      color: "#e8192c" },
+];
+
+const PROGRAM = {
+  1: buildWeek1(),
+  2: buildWeek2(),
+  3: buildWeek3(),
+  4: buildWeek4(),
+  5: buildWeek5(),
+  6: buildWeek6(),
+};
+
+function ex(name, reps) { return { name, reps }; }
+
+function buildWeek1() {
+  return [
+    {
+      day: 1, title: "Strength + Treadmill", tags: ["strength","cardio"],
+      sections: [
+        { title: "Foundation (2 sets)", exercises: [
+          ex("Push-ups","5–8 reps"), ex("Sit-ups","8–10 reps"), ex("Squats","10–12 reps")
+        ]},
+        { title: "Strength Circuit (2 rounds)", exercises: [
+          ex("Squats","8 reps"), ex("Push-ups","5–8 reps"), ex("Walking Lunges","10 reps"),
+          ex("Plank","10 sec"), ex("Incline Push-ups","6–8 reps")
+        ]},
+      ],
+      cardio: { type: "Treadmill", duration: "10–15 min", detail: "1 min jog / 2 min walk" }
+    },
+    {
+      day: 2, title: "Agility + Bike", tags: ["agility","cardio"],
+      sections: [
+        { title: "Agility (2–3 rounds)", exercises: [
+          ex("Jumping Jacks","10 reps"), ex("Quick Feet","20 sec"), ex("Side Shuffle","20 sec"),
+          ex("Short Sprints","5 reps")
+        ]},
+      ],
+      cardio: { type: "Bike", duration: "10–15 min", detail: "Easy pace" }
+    },
+    {
+      day: 3, title: "Rest / Play", tags: ["rest"], rest: true,
+      restNote: "Shoot hoops, play outside — just move and have fun! 🏀"
+    },
+    {
+      day: 4, title: "Strength + Bike", tags: ["strength","cardio"],
+      sameAs: "Same strength circuit as Day 1",
+      sections: [
+        { title: "Foundation (2 sets)", exercises: [
+          ex("Push-ups","5–8 reps"), ex("Sit-ups","8–10 reps"), ex("Squats","10–12 reps")
+        ]},
+        { title: "Strength Circuit (2 rounds)", exercises: [
+          ex("Squats","8 reps"), ex("Push-ups","5–8 reps"), ex("Walking Lunges","10 reps"),
+          ex("Plank","10 sec"), ex("Incline Push-ups","6–8 reps")
+        ]},
+      ],
+      cardio: { type: "Bike", duration: "10–15 min", detail: "Easy pace" }
+    },
+    {
+      day: 5, title: "Agility + Treadmill", tags: ["agility","cardio"],
+      sections: [
+        { title: "Agility (2–3 rounds)", exercises: [
+          ex("Jumping Jacks","10 reps"), ex("Quick Feet","20 sec"), ex("Side Shuffle","20 sec"),
+          ex("Short Sprints","5 reps")
+        ]},
+      ],
+      cardio: { type: "Treadmill", duration: "10–15 min", detail: "1 min jog / 2 min walk" }
+    },
+    {
+      day: 6, title: "Fun Cardio", tags: ["fun","cardio"],
+      funOptions: [
+        { icon: "🚴", label: "Bike Ride" },
+        { icon: "🏃", label: "Treadmill" },
+        { icon: "⚽", label: "Sport / Obstacle Course" },
+      ]
+    },
+    {
+      day: 7, title: "Rest Day", tags: ["rest"], rest: true,
+      restNote: "Full rest — let your muscles grow! 😴💪"
+    }
+  ];
+}
+
+function buildWeek2() {
+  const w1 = buildWeek1();
+  return w1.map(d => ({ ...d, week2note: true }));
+}
+
+function buildWeek3() {
+  return [
+    {
+      day: 1, title: "Strength + Treadmill", tags: ["strength","cardio"],
+      sections: [
+        { title: "Foundation (2–3 sets)", exercises: [
+          ex("Push-ups","8–12 reps"), ex("Sit-ups","10–15 reps"), ex("Squats","12–15 reps")
+        ]},
+        { title: "Strength (2–3 rounds)", exercises: [
+          ex("Squats","10 reps"), ex("Push-ups","8–10 reps"), ex("Lunges","12 reps"),
+          ex("Plank","15 sec"), ex("Bench Dips","8 reps"), ex("Glute Bridges","10 reps")
+        ]},
+      ],
+      cardio: { type: "Treadmill", duration: "15–20 min", detail: "1–2 min jog / 1–2 min walk" }
+    },
+    {
+      day: 2, title: "Agility + Bike", tags: ["agility","cardio"],
+      sections: [
+        { title: "Agility (3 rounds)", exercises: [
+          ex("Jumping Jacks","15 reps"), ex("Lateral Shuffle","30 sec"),
+          ex("Backpedal → Sprint","5 reps"), ex("Burpees","5 reps"), ex("Sprints","6 reps")
+        ]},
+      ],
+      cardio: { type: "Bike", duration: "15–20 min", detail: "Steady pace" }
+    },
+    {
+      day: 3, title: "Rest / Play", tags: ["rest"], rest: true,
+      restNote: "Rest up — you earned it! Get outside and play 🌤️"
+    },
+    {
+      day: 4, title: "Strength + Bike", tags: ["strength","cardio"],
+      sections: [
+        { title: "Foundation (2–3 sets)", exercises: [
+          ex("Push-ups","8–12 reps"), ex("Sit-ups","10–15 reps"), ex("Squats","12–15 reps")
+        ]},
+        { title: "Strength (2–3 rounds)", exercises: [
+          ex("Squats","10 reps"), ex("Push-ups","8–10 reps"), ex("Lunges","12 reps"),
+          ex("Plank","15 sec"), ex("Bench Dips","8 reps"), ex("Glute Bridges","10 reps")
+        ]},
+      ],
+      cardio: { type: "Bike", duration: "15–20 min", detail: "Optional: 30 sec fast / 1 min easy" }
+    },
+    {
+      day: 5, title: "Agility + Treadmill", tags: ["agility","cardio"],
+      sections: [
+        { title: "Agility (3 rounds)", exercises: [
+          ex("Jumping Jacks","15 reps"), ex("Lateral Shuffle","30 sec"),
+          ex("Backpedal → Sprint","5 reps"), ex("Burpees","5 reps"), ex("Sprints","6 reps")
+        ]},
+      ],
+      cardio: { type: "Treadmill", duration: "15–20 min", detail: "Steady pace" }
+    },
+    {
+      day: 6, title: "Fun Cardio", tags: ["fun","cardio"],
+      funOptions: [
+        { icon: "🚴", label: "Bike Ride" },
+        { icon: "🏃", label: "Treadmill" },
+        { icon: "⚽", label: "Pick your favorite!" },
+      ]
+    },
+    {
+      day: 7, title: "Rest Day", tags: ["rest"], rest: true,
+      restNote: "Full rest — recovery is part of training! 😴"
+    }
+  ];
+}
+
+function buildWeek4() {
+  const w3 = buildWeek3();
+  return w3.map(d => ({ ...d, week4note: true }));
+}
+
+function buildWeek5() {
+  return [
+    {
+      day: 1, title: "Strength + Treadmill", tags: ["strength","cardio"],
+      sections: [
+        { title: "Foundation (3 sets)", exercises: [
+          ex("Push-ups","10–15 reps"), ex("Sit-ups","15–20 reps"), ex("Squats","15–20 reps")
+        ]},
+        { title: "Strength (3 rounds)", exercises: [
+          ex("Squats (pause at bottom)","12 reps"), ex("Push-ups","10–12 reps"),
+          ex("Reverse Lunges","12 reps"), ex("Plank","20 sec"), ex("Dips","10 reps"),
+          ex("Glute Bridges","12 reps"), ex("Supermans","10 reps")
+        ]},
+      ],
+      cardio: { type: "Treadmill", duration: "20–25 min", detail: "Steady jog + short speed bursts" }
+    },
+    {
+      day: 2, title: "Agility + Bike", tags: ["agility","cardio"],
+      sections: [
+        { title: "Agility (3–4 rounds)", exercises: [
+          ex("High Knees","20 reps"), ex("Zig-Zag Runs","×"), ex("Backpedal → Sprint","×"),
+          ex("Burpees","8 reps"), ex("Sprints","6–8 reps")
+        ]},
+      ],
+      cardio: { type: "Bike", duration: "20–25 min", detail: "1 min fast / 2 min easy" }
+    },
+    {
+      day: 3, title: "Rest / Play", tags: ["rest"], rest: true,
+      restNote: "You're in beast mode — rest so you can keep dominating 🔥"
+    },
+    {
+      day: 4, title: "Strength + Bike", tags: ["strength","cardio"],
+      sections: [
+        { title: "Foundation (3 sets)", exercises: [
+          ex("Push-ups","10–15 reps"), ex("Sit-ups","15–20 reps"), ex("Squats","15–20 reps")
+        ]},
+        { title: "Strength (3 rounds)", exercises: [
+          ex("Squats (pause at bottom)","12 reps"), ex("Push-ups","10–12 reps"),
+          ex("Reverse Lunges","12 reps"), ex("Plank","20 sec"), ex("Dips","10 reps"),
+          ex("Glute Bridges","12 reps"), ex("Supermans","10 reps")
+        ]},
+      ],
+      cardio: { type: "Bike", duration: "20–25 min", detail: "Steady pace" }
+    },
+    {
+      day: 5, title: "Agility + Treadmill", tags: ["agility","cardio"],
+      sections: [
+        { title: "Agility (3–4 rounds)", exercises: [
+          ex("High Knees","20 reps"), ex("Zig-Zag Runs","×"), ex("Backpedal → Sprint","×"),
+          ex("Burpees","8 reps"), ex("Sprints","6–8 reps")
+        ]},
+      ],
+      cardio: { type: "Treadmill", duration: "20–25 min", detail: "Steady pace" }
+    },
+    {
+      day: 6, title: "Fun Cardio", tags: ["fun","cardio"],
+      funOptions: [
+        { icon: "🚴", label: "Bike Ride" },
+        { icon: "🏃", label: "Treadmill" },
+        { icon: "⚽", label: "Sport / Whatever you love" },
+      ]
+    },
+    {
+      day: 7, title: "Rest Day", tags: ["rest"], rest: true,
+      restNote: "Legendary rest day. Week 6 is the FINAL BOSS. 👑"
+    }
+  ];
+}
+
+function buildWeek6() {
+  const w5 = buildWeek5();
+  return w5.map(d => ({ ...d, week6note: true }));
+}
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+const DEFAULT_STATE = { completed: {}, exercises: {}, funPicks: {}, currentWeek: 1 };
+
+let state = { ...DEFAULT_STATE };
+let currentWeek = 1;
+let saveTimer = null;
+
+// Debounced Firestore save — batches rapid taps into one write
+function saveState() {
+  // Always mirror to localStorage as offline fallback
+  localStorage.setItem('beast_builder_v1', JSON.stringify(state));
+  // Debounce Firestore writes to max 1 per second
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      if (window._bbSetDoc && window._bbDocRef) {
+        await window._bbSetDoc(window._bbDocRef, state);
+      }
+    } catch(e) { console.warn('Firestore save failed, using localStorage', e); }
+  }, 1000);
+}
+
+async function loadStateFromFirestore() {
+  // Show loading indicator
+  document.getElementById('loadingOverlay').style.display = 'flex';
+  try {
+    if (window._bbGetDoc && window._bbDocRef) {
+      const snap = await window._bbGetDoc(window._bbDocRef);
+      if (snap.exists()) {
+        state = { ...DEFAULT_STATE, ...snap.data() };
+      } else {
+        // First time — check localStorage for migrated data
+        const local = localStorage.getItem('beast_builder_v1');
+        state = local ? { ...DEFAULT_STATE, ...JSON.parse(local) } : { ...DEFAULT_STATE };
+      }
+    } else {
+      // Firebase not ready yet — fall back to localStorage
+      const local = localStorage.getItem('beast_builder_v1');
+      state = local ? { ...DEFAULT_STATE, ...JSON.parse(local) } : { ...DEFAULT_STATE };
+    }
+  } catch(e) {
+    console.warn('Firestore load failed, using localStorage', e);
+    const local = localStorage.getItem('beast_builder_v1');
+    state = local ? { ...DEFAULT_STATE, ...JSON.parse(local) } : { ...DEFAULT_STATE };
+  }
+  currentWeek = state.currentWeek || 1;
+  document.getElementById('loadingOverlay').style.display = 'none';
+  renderAll();
+}
+
+// ═══════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════
+function weekKey(w, d) { return `w${w}d${d}`; }
+function exKey(w, d, s, i) { return `w${w}d${d}s${s}e${i}`; }
+
+function renderWeekTabs() {
+  const container = document.getElementById('weekTabs');
+  container.innerHTML = '';
+  for (let w = 1; w <= 6; w++) {
+    const btn = document.createElement('button');
+    btn.className = 'week-tab';
+    btn.innerHTML = `Week ${w}<span class="tab-check">✓</span>`;
+    if (w === currentWeek) btn.classList.add('active');
+    if (isWeekComplete(w)) btn.classList.add('complete');
+    btn.onclick = () => { currentWeek = w; state.currentWeek = w; saveState(); renderAll(false); };
+    container.appendChild(btn);
+  }
+}
+
+function isWeekComplete(w) {
+  const days = PROGRAM[w];
+  return days.every(d => {
+    if (d.rest) return true;
+    return !!state.completed[weekKey(w, d.day)];
+  });
+}
+
+function getWeekDoneDays(w) {
+  return PROGRAM[w].filter(d => !d.rest && !!state.completed[weekKey(w, d.day)]).length;
+}
+
+function getWeekTotalDays(w) {
+  return PROGRAM[w].filter(d => !d.rest).length;
+}
+
+function renderWeekHeader() {
+  const meta = WEEK_META[currentWeek - 1];
+  const wEl = document.getElementById('weekBadge');
+  wEl.innerHTML = `WK <span>${currentWeek}</span>`;
+  document.getElementById('weekTitle').textContent = meta.title;
+  document.getElementById('weekSubtitle').textContent = meta.subtitle;
+
+  const done = getWeekDoneDays(currentWeek);
+  const total = getWeekTotalDays(currentWeek);
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const circumference = 138.2;
+  const offset = circumference - (pct / 100) * circumference;
+  document.getElementById('weekRing').style.strokeDashoffset = offset;
+  document.getElementById('weekPct').textContent = pct + '%';
+}
+
+function renderDays() {
+  const container = document.getElementById('daysList');
+  container.innerHTML = '';
+  const days = PROGRAM[currentWeek];
+  const meta = WEEK_META[currentWeek - 1];
+
+  // For "same as" weeks, add a note at top
+  if (currentWeek === 2 || currentWeek === 4 || currentWeek === 6) {
+    const prevWeek = currentWeek - 1;
+    const noteMap = {
+      2: { title: "👉 Same Structure as Week 1", body: "Movement gets smoother. Try +1 rep or +2 min cardio if it feels good!" },
+      4: { title: "👉 Same Structure as Week 3", body: "Try +1 extra round OR +2–3 minutes of cardio. You've got this!" },
+      6: { title: "👉 Same Structure as Week 5", body: "Go slightly faster, focus on better form, and own every rep. FINAL WEEK! 🔥" },
+    };
+    const n = noteMap[currentWeek];
+    const noteEl = document.createElement('div');
+    noteEl.className = 'same-as-note';
+    noteEl.innerHTML = `<div class="san-title">${n.title}</div><div class="san-text">${n.body}</div>`;
+    container.appendChild(noteEl);
+  }
+
+  days.forEach((dayData, idx) => {
+    const key = weekKey(currentWeek, dayData.day);
+    const isDone = !!state.completed[key];
+    const isToday = isCurrentDay(currentWeek, idx);
+
+    const card = document.createElement('div');
+    card.className = `day-card${isDone ? ' done' : ''}${isToday ? ' today' : ''}${dayData.rest ? ' rest-card' : ''}`;
+    card.id = `dayCard_${currentWeek}_${dayData.day}`;
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'day-header';
+    header.onclick = () => toggleCard(card, dayData.rest);
+
+    const badge = document.createElement('div');
+    badge.className = 'day-number-badge';
+    badge.textContent = isDone ? '✓' : dayData.day;
+
+    const info = document.createElement('div');
+    info.className = 'day-info';
+    info.innerHTML = `
+      <div class="day-title">Day ${dayData.day} — ${dayData.title}${isToday ? '<span class="today-pill">Today</span>' : ''}</div>
+      <div class="day-tags">${dayData.tags.map(t => `<span class="tag tag-${t}">${t}</span>`).join('')}</div>
+    `;
+
+    const chevron = document.createElement('div');
+    chevron.className = 'day-chevron';
+    chevron.textContent = '▾';
+
+    const doneBtn = document.createElement('button');
+    doneBtn.className = 'day-done-btn';
+    doneBtn.innerHTML = isDone ? '✓' : '○';
+    doneBtn.title = isDone ? 'Mark incomplete' : 'Mark complete';
+    doneBtn.onclick = (e) => {
+      e.stopPropagation();
+      toggleDayDone(currentWeek, dayData.day, card, badge, doneBtn);
+    };
+
+    if (dayData.rest) {
+      header.appendChild(badge);
+      header.appendChild(info);
+      header.appendChild(chevron);
+      header.appendChild(doneBtn);
+    } else {
+      header.appendChild(badge);
+      header.appendChild(info);
+      header.appendChild(chevron);
+      header.appendChild(doneBtn);
+    }
+
+    card.appendChild(header);
+
+    // Body
+    const body = document.createElement('div');
+    body.className = 'day-body';
+
+    if (dayData.rest) {
+      const restWrap = document.createElement('div');
+      restWrap.innerHTML = `<div class="rest-message"><span class="emoji">🌟</span>${dayData.restNote}</div>`;
+      body.appendChild(restWrap);
+      appendMarkDoneBtn(body, currentWeek, dayData.day, isDone, card, badge, doneBtn);
+    } else if (dayData.funOptions) {
+      // Fun cardio day
+      body.innerHTML = `<div class="section-title">🎉 Pick Your Activity</div>`;
+      const opts = document.createElement('div');
+      opts.className = 'fun-cardio-options';
+      const savedPick = (state.funPicks[key] || null);
+      dayData.funOptions.forEach((opt, oi) => {
+        const optEl = document.createElement('div');
+        optEl.className = `fun-option${savedPick === oi ? ' selected' : ''}`;
+        optEl.innerHTML = `<span class="opt-icon">${opt.icon}</span>${opt.label}`;
+        optEl.onclick = () => {
+          opts.querySelectorAll('.fun-option').forEach(el => el.classList.remove('selected'));
+          optEl.classList.add('selected');
+          state.funPicks[key] = oi;
+          saveState();
+        };
+        opts.appendChild(optEl);
+      });
+      body.appendChild(opts);
+      appendMarkDoneBtn(body, currentWeek, dayData.day, isDone, card, badge, doneBtn);
+    } else {
+      // Sections
+      if (dayData.sections) {
+        dayData.sections.forEach((section, si) => {
+          const stitle = document.createElement('div');
+          stitle.className = 'section-title';
+          stitle.textContent = section.title;
+          body.appendChild(stitle);
+
+          // Parse set count from section title e.g. "2 sets", "3 rounds", "2–3 sets"
+          const setMatch = section.title.match(/(\d+)(?:–\d+)?\s*(?:sets?|rounds?)/i);
+          const numSets = setMatch ? parseInt(setMatch[1]) : 1;
+
+          const exList = document.createElement('div');
+          exList.className = 'exercise-list';
+          section.exercises.forEach((ex, ei) => {
+            const item = document.createElement('div');
+
+            // Build set-boxes
+            const boxesEl = document.createElement('div');
+            boxesEl.className = 'set-boxes';
+
+            // Check how many sets are done for this exercise
+            function getSetsState() {
+              const arr = [];
+              for (let s = 0; s < numSets; s++) {
+                arr.push(!!(state.exercises[exKey(currentWeek, dayData.day, si, ei) + '_s' + s]));
+              }
+              return arr;
+            }
+
+            function refreshItem() {
+              const sets = getSetsState();
+              const allDone = sets.every(Boolean);
+              item.classList.toggle('checked', allDone);
+              sets.forEach((done, si2) => {
+                const box = boxesEl.children[si2];
+                if (box) box.classList.toggle('done', done);
+              });
+            }
+
+            for (let s = 0; s < numSets; s++) {
+              const box = document.createElement('div');
+              box.className = 'set-box';
+              box.textContent = '✓';
+              const setStorageKey = exKey(currentWeek, dayData.day, si, ei) + '_s' + s;
+              if (state.exercises[setStorageKey]) box.classList.add('done');
+              box.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const nowDone = !state.exercises[setStorageKey];
+                state.exercises[setStorageKey] = nowDone;
+                box.classList.toggle('done', nowDone);
+                if (nowDone) {
+                  box.classList.add('done-animate');
+                  box.addEventListener('animationend', () => box.classList.remove('done-animate'), { once: true });
+                  showTimerFab();
+                }
+                refreshItem();
+                saveState();
+              });
+              boxesEl.appendChild(box);
+            }
+
+            const allDoneNow = getSetsState().every(Boolean);
+            item.className = `exercise-item${allDoneNow ? ' checked' : ''}`;
+
+            const textEl = document.createElement('div');
+            textEl.className = 'exercise-text';
+            textEl.textContent = ex.name;
+
+            const repsEl = document.createElement('div');
+            repsEl.className = 'exercise-reps';
+            repsEl.textContent = ex.reps;
+
+            item.appendChild(textEl);
+            item.appendChild(repsEl);
+            item.appendChild(boxesEl);
+
+            exList.appendChild(item);
+          });
+          body.appendChild(exList);
+        });
+      }
+
+      // Cardio block
+      if (dayData.cardio) {
+        const cb = document.createElement('div');
+        cb.className = 'cardio-block';
+        cb.innerHTML = `
+          <div class="cardio-title">🏃 ${dayData.cardio.type}</div>
+          <div class="cardio-detail">
+            Duration: <span>${dayData.cardio.duration}</span><br>
+            Pace: <span>${dayData.cardio.detail}</span>
+          </div>
+        `;
+        body.appendChild(cb);
+      }
+
+      appendMarkDoneBtn(body, currentWeek, dayData.day, isDone, card, badge, doneBtn);
+    }
+
+    card.appendChild(body);
+
+    // Auto-open today's card
+    if (isToday) {
+      card.classList.add('open');
+    }
+
+    container.appendChild(card);
+  });
+}
+
+function appendMarkDoneBtn(body, week, day, isDone, card, badge, doneBtn) {
+  const wrap = document.createElement('div');
+  wrap.className = 'mark-done-wrap';
+  const btn = document.createElement('button');
+  btn.className = `mark-done-btn${isDone ? ' done-state' : ''}`;
+  btn.textContent = isDone ? '✓ CRUSHED IT!' : '💪 MARK AS DONE';
+  btn.onclick = () => toggleDayDone(week, day, card, badge, doneBtn, btn);
+  wrap.appendChild(btn);
+  body.appendChild(wrap);
+}
+
+function toggleCard(card, isRest) {
+  card.classList.toggle('open');
+}
+
+function toggleDayDone(week, day, card, badge, doneBtn, innerBtn) {
+  const key = weekKey(week, day);
+  const nowDone = !state.completed[key];
+  state.completed[key] = nowDone;
+  saveState();
+
+  card.classList.toggle('done', nowDone);
+  badge.textContent = nowDone ? '✓' : day;
+
+  if (doneBtn) {
+    doneBtn.innerHTML = nowDone ? '✓' : '○';
+    doneBtn.title = nowDone ? 'Mark incomplete' : 'Mark complete';
+  }
+
+  // Update inner button if visible
+  const innerBtns = card.querySelectorAll('.mark-done-btn');
+  innerBtns.forEach(b => {
+    b.textContent = nowDone ? '✓ CRUSHED IT!' : '💪 MARK AS DONE';
+    b.classList.toggle('done-state', nowDone);
+  });
+
+  if (nowDone) spawnConfetti();
+  // Re-render and auto-advance to next day when marking done
+  renderAll(nowDone);
+}
+
+// Find the active {week, dayIndex} across the whole program
+function findActiveDay() {
+  for (let w = 1; w <= 6; w++) {
+    const days = PROGRAM[w];
+    for (let i = 0; i < days.length; i++) {
+      const d = days[i];
+      if (!state.completed[weekKey(w, d.day)]) {
+        return { week: w, dayIndex: i };
+      }
+    }
+  }
+  return null; // all done!
+}
+
+function isCurrentDay(week, dayIndex) {
+  const active = findActiveDay();
+  if (!active) return false;
+  return active.week === week && active.dayIndex === dayIndex;
+}
+
+// Jump to the right week and scroll the active card into view
+function syncToActiveDay() {
+  const active = findActiveDay();
+  if (!active) return;
+  if (currentWeek !== active.week) {
+    currentWeek = active.week;
+    state.currentWeek = active.week;
+    saveState();
+  }
+}
+
+function renderStats() {
+  let totalDone = 0;
+  let totalWorkout = 0;
+  for (let w = 1; w <= 6; w++) {
+    PROGRAM[w].forEach(d => {
+      totalWorkout++;
+      if (state.completed[weekKey(w, d.day)]) totalDone++;
+    });
+  }
+
+  // Simple streak: consecutive completed workout days from most recent
+  let streak = 0;
+  let checking = true;
+  outer: for (let w = 6; w >= 1; w--) {
+    const days = [...PROGRAM[w]].reverse();
+    for (const d of days) {
+      if (d.rest) continue;
+      if (checking && state.completed[weekKey(w, d.day)]) {
+        streak++;
+      } else if (checking) {
+        checking = false;
+        break outer;
+      }
+    }
+  }
+
+  document.getElementById('statStreak').textContent = streak;
+  document.getElementById('statDone').textContent = totalDone;
+  document.getElementById('statWeek').textContent = currentWeek;
+
+  const pct = totalWorkout > 0 ? Math.round((totalDone / totalWorkout) * 100) : 0;
+  document.getElementById('overallBar').style.width = pct + '%';
+  document.getElementById('overallCount').textContent = `${totalDone} / ${totalWorkout} days`;
+
+  // Trophy screen
+  document.getElementById('tDays').textContent = totalDone;
+  document.getElementById('tStreak').textContent = streak;
+  let fullWeeks = 0;
+  for (let w = 1; w <= 6; w++) { if (isWeekComplete(w)) fullWeeks++; }
+  document.getElementById('tWeeks').textContent = fullWeeks;
+  document.getElementById('tPct').textContent = pct + '%';
+
+  // Week progress row
+  const row = document.getElementById('weekProgressRow');
+  row.innerHTML = '';
+  for (let w = 1; w <= 6; w++) {
+    const done = getWeekDoneDays(w);
+    const total = getWeekTotalDays(w);
+    const cell = document.createElement('div');
+    cell.className = 'wpr-cell';
+    const stars = done === total && total > 0 ? '⭐' : done > 0 ? '🔥' : '—';
+    cell.innerHTML = `
+      <div class="wk-label">Wk ${w}</div>
+      <div class="wk-stars">${stars}</div>
+      <div style="font-family:'Barlow Condensed';font-size:11px;color:var(--muted);font-weight:700;">${done}/${total}</div>
+    `;
+    row.appendChild(cell);
+  }
+}
+
+let initialLoad = true;
+
+function renderAll(autoAdvance = false) {
+  if (initialLoad || autoAdvance) {
+    syncToActiveDay();
+    initialLoad = false;
+  }
+  renderWeekTabs();
+  renderWeekHeader();
+  renderDays();
+  renderStats();
+  // Scroll active card into view after a short paint delay
+  requestAnimationFrame(() => {
+    const openCard = document.querySelector('.day-card.open');
+    if (openCard) openCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+// ═══════════════════════════════════════════
+// CONFETTI
+// ═══════════════════════════════════════════
+function spawnConfetti() {
+  const colors = ['#e8192c','#ffffff','#3b82f6','#ffd700','#22c55e'];
+  for (let i = 0; i < 40; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.left = Math.random() * 100 + 'vw';
+    el.style.background = colors[Math.floor(Math.random() * colors.length)];
+    el.style.animationDuration = (0.8 + Math.random() * 0.8) + 's';
+    el.style.animationDelay = (Math.random() * 0.4) + 's';
+    el.style.transform = `rotate(${Math.random()*360}deg)`;
+    el.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1800);
+  }
+}
+
+// ═══════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════
+function switchScreen(screen) {
+  document.getElementById('screenWorkout').classList.toggle('active', screen === 'workout');
+  document.getElementById('screenTrophy').classList.toggle('active', screen === 'trophy');
+  document.getElementById('navWorkout').classList.toggle('active', screen === 'workout');
+  document.getElementById('navTrophy').classList.toggle('active', screen === 'trophy');
+  if (screen === 'trophy') renderStats();
+}
+
+// ═══════════════════════════════════════════
+// RESET
+// ═══════════════════════════════════════════
+function confirmReset() {
+  if (confirm("Reset all of Ben's progress? This cannot be undone.")) {
+    state = { completed: {}, exercises: {}, funPicks: {}, currentWeek: 1 };
+    currentWeek = 1;
+    localStorage.removeItem('beast_builder_v1');
+    saveState();
+    renderAll();
+    switchScreen('workout');
+  }
+}
+
+// ═══════════════════════════════════════════
+// REST TIMER
+// ═══════════════════════════════════════════
+const CIRCUMFERENCE = 502; // 2 * PI * 80
+let timerDuration = 60;
+let timerRemaining = 60;
+let timerInterval = null;
+let timerRunning = false;
+
+function openTimer() {
+  document.getElementById('timerOverlay').classList.add('open');
+  updateTimerDisplay();
+}
+
+function closeTimer() {
+  document.getElementById('timerOverlay').classList.remove('open');
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('timerOverlay')) closeTimer();
+}
+
+function setPreset(seconds) {
+  pauseTimer();
+  timerDuration = seconds;
+  timerRemaining = seconds;
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active-preset'));
+  event.target.classList.add('active-preset');
+  resetTimerVisuals();
+  updateTimerDisplay();
+}
+
+function toggleTimer() {
+  timerRunning ? pauseTimer() : startTimer();
+}
+
+function startTimer() {
+  if (timerRemaining <= 0) { timerRemaining = timerDuration; resetTimerVisuals(); }
+  timerRunning = true;
+  document.getElementById('tBtnMain').textContent = '⏸';
+  document.getElementById('tBtnMain').classList.add('paused');
+  document.getElementById('timerSub').textContent = 'REST UP!';
+  timerInterval = setInterval(() => {
+    timerRemaining--;
+    updateTimerDisplay();
+    if (timerRemaining <= 0) timerDone();
+  }, 1000);
+}
+
+function pauseTimer() {
+  timerRunning = false;
+  clearInterval(timerInterval);
+  timerInterval = null;
+  document.getElementById('tBtnMain').textContent = '▶';
+  document.getElementById('tBtnMain').classList.remove('paused');
+  if (timerRemaining > 0) document.getElementById('timerSub').textContent = 'PAUSED';
+}
+
+function resetTimer() {
+  pauseTimer();
+  timerRemaining = timerDuration;
+  resetTimerVisuals();
+  updateTimerDisplay();
+}
+
+function addTime(secs) {
+  timerRemaining = Math.min(timerRemaining + secs, 599);
+  if (timerRemaining > timerDuration) timerDuration = timerRemaining;
+  updateTimerDisplay();
+}
+
+function resetTimerVisuals() {
+  const ring = document.getElementById('tRingFill');
+  ring.classList.remove('green');
+  ring.style.stroke = '';
+  const disp = document.getElementById('timerDisplay');
+  disp.classList.remove('done-color');
+  disp.style.color = '';
+  document.getElementById('timerSub').textContent = 'READY';
+  document.getElementById('tBtnMain').textContent = '▶';
+  document.getElementById('tBtnMain').classList.remove('paused');
+}
+
+function updateTimerDisplay() {
+  const mins = Math.floor(timerRemaining / 60);
+  const secs = timerRemaining % 60;
+  document.getElementById('timerDisplay').textContent = `${mins}:${String(secs).padStart(2,'0')}`;
+  const pct = timerDuration > 0 ? timerRemaining / timerDuration : 1;
+  document.getElementById('tRingFill').style.strokeDashoffset = CIRCUMFERENCE * (1 - pct);
+  const disp = document.getElementById('timerDisplay');
+  if (timerRemaining <= 5 && timerRemaining > 0) {
+    document.getElementById('tRingFill').style.stroke = '#fbbf24';
+    disp.style.color = '#fbbf24';
+  } else if (timerRemaining > 0) {
+    document.getElementById('tRingFill').style.stroke = '';
+    disp.style.color = '';
+  }
+}
+
+function timerDone() {
+  pauseTimer();
+  timerRemaining = 0;
+  document.getElementById('timerDisplay').textContent = 'GO!';
+  document.getElementById('timerDisplay').classList.add('done-color');
+  document.getElementById('timerSub').textContent = 'BACK TO WORK! 💪';
+  const ring = document.getElementById('tRingFill');
+  ring.classList.add('green');
+  ring.style.strokeDashoffset = 0;
+  ring.style.stroke = '';
+  document.getElementById('timerSheet').classList.add('timer-done-flash');
+  setTimeout(() => document.getElementById('timerSheet').classList.remove('timer-done-flash'), 500);
+  playBeep();
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+}
+
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [523, 659, 784].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq; osc.type = 'sine';
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.3);
+      osc.start(ctx.currentTime + i * 0.15);
+      osc.stop(ctx.currentTime + i * 0.15 + 0.3);
+    });
+  } catch(e) {}
+}
+
+function showTimerFab() {
+  document.getElementById('timerFab').classList.add('visible');
+}
+
+// ═══════════════════════════════════════════
+// INIT — wait for Firebase module to expose globals, then load
+// ═══════════════════════════════════════════
+function waitForFirebaseAndLoad(attempts = 0) {
+  if (window._bbGetDoc && window._bbDocRef) {
+    loadStateFromFirestore();
+  } else if (attempts < 20) {
+    setTimeout(() => waitForFirebaseAndLoad(attempts + 1), 100);
+  } else {
+    // Firebase never loaded — use localStorage
+    const local = localStorage.getItem('beast_builder_v1');
+    state = local ? { ...DEFAULT_STATE, ...JSON.parse(local) } : { ...DEFAULT_STATE };
+    currentWeek = state.currentWeek || 1;
+    document.getElementById('loadingOverlay').style.display = 'none';
+    renderAll();
+  }
+}
+waitForFirebaseAndLoad();
+</script>
+
+<!-- PWA Manifest inline -->
+<script>
+const manifest = {
+  name: "Ben's Beast Builder",
+  short_name: "Beast Builder",
+  description: "Ben's 6-Week Fitness Tracker",
+  start_url: "/",
+  display: "standalone",
+  background_color: "#0a0f2e",
+  theme_color: "#0a0f2e",
+  icons: [
+    { src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏋️</text></svg>", sizes: "192x192", type: "image/svg+xml" }
+  ]
+};
+const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+const url = URL.createObjectURL(blob);
+const link = document.createElement('link');
+link.rel = 'manifest';
+link.href = url;
+document.head.appendChild(link);
+</script>
+
+</body>
+</html>
