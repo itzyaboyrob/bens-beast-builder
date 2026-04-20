@@ -37,19 +37,19 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --navy: #0a0f2e;
-    --navy-mid: #111936;
-    --navy-card: #161d3f;
-    --navy-light: #1e2850;
+    --navy: #0a1628;
+    --navy-mid: #0d1f3c;
+    --navy-card: #0f2548;
+    --navy-light: #1a3a6b;
     --red: #e8192c;
     --red-dark: #c01020;
     --red-glow: rgba(232, 25, 44, 0.3);
     --white: #ffffff;
-    --off-white: #e8ecf5;
-    --muted: #6b7db3;
+    --off-white: #e8f0f8;
+    --muted: #6b8cba;
     --gold: #ffd700;
     --green: #22c55e;
-    --blue-accent: #3b82f6;
+    --blue-accent: #0E4C92;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -432,7 +432,7 @@
     border-radius: 4px;
   }
 
-  .tag-strength { background: rgba(59,130,246,0.2); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+  .tag-strength { background: rgba(14,76,146,0.3); color: #5b9bd5; border: 1px solid rgba(14,76,146,0.5); }
   .tag-cardio { background: rgba(232,25,44,0.2); color: #fb7185; border: 1px solid rgba(232,25,44,0.3); }
   .tag-agility { background: rgba(255,215,0,0.15); color: #fbbf24; border: 1px solid rgba(255,215,0,0.3); }
   .tag-rest { background: rgba(107,125,179,0.2); color: var(--muted); border: 1px solid rgba(107,125,179,0.3); }
@@ -1199,10 +1199,8 @@
 
   <!-- Motivation Banner -->
   <div class="motivation-banner">
-    <div class="motivation-label">🔥 Today's Fuel</div>
-    <div class="motivation-text motivation-placeholder" id="motivationText">
-      Daily motivation coming soon — powered by AI!
-    </div>
+    <div class="motivation-label">💬 Daily Motivation</div>
+    <div class="motivation-text" id="motivationText">Loading today's message...</div>
   </div>
 
   <!-- Stats Bar -->
@@ -1217,7 +1215,7 @@
     </div>
     <div class="stat-chip">
       <div class="stat-value gold" id="statWeek">1</div>
-      <div class="stat-label">Cur. Week</div>
+      <div class="stat-label">Current Week</div>
     </div>
   </div>
 
@@ -1630,6 +1628,7 @@ async function loadStateFromFirestore() {
   currentWeek = state.currentWeek || 1;
   document.getElementById('loadingOverlay').style.display = 'none';
   renderAll();
+  loadMotivation();
 }
 
 // ═══════════════════════════════════════════
@@ -2228,6 +2227,92 @@ function showTimerFab() {
 }
 
 // ═══════════════════════════════════════════
+// DAILY MOTIVATION
+// ═══════════════════════════════════════════
+const MOTIVATION_FALLBACK = "Every rep, every set, every day — you're building something real. Let's get after it, Ben! 💪";
+
+function getMotivationCacheKey() {
+  const today = new Date();
+  return 'beast_motivation_' + today.getFullYear() + '_' + (today.getMonth()+1) + '_' + today.getDate();
+}
+
+function loadMotivation() {
+  const el = document.getElementById('motivationText');
+  if (!el) return;
+
+  // Check cache first
+  try {
+    const cached = localStorage.getItem(getMotivationCacheKey());
+    if (cached) {
+      el.textContent = cached;
+      el.classList.remove('motivation-placeholder');
+      return;
+    }
+  } catch(e) {}
+
+  // Build context from Ben's current progress
+  const active = findActiveDay();
+  const totalDays = 42;
+  const completedDays = Object.keys(state.completed).length;
+  const weekNum = active ? active.week : 6;
+  const dayNum = active ? (PROGRAM[active.week][active.dayIndex].day) : 7;
+  const weekMeta = WEEK_META[weekNum - 1];
+  const daysOfWeek = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const todayName = daysOfWeek[new Date().getDay()];
+
+  // Figure out today's workout type
+  const todayData = active ? PROGRAM[active.week][active.dayIndex] : null;
+  const workoutType = todayData ? todayData.title : 'Rest Day';
+  const isRestDay = todayData ? !!todayData.rest : true;
+
+  const prompt =
+    'You are a personal coach for an 11-year-old boy named Ben doing a 6-week fitness program called Beast Builder. ' +
+    'Write a short daily motivational message in 2-3 sentences. ' +
+    'Be energetic, fun, age-appropriate, and specific to where he is in the program. ' +
+    'No em dashes. No hashtags. Do not start with his name. Use simple language an 11-year-old would love. ' +
+
+    'Today is ' + todayName + '. Week ' + weekNum + ' of 6 (phase: ' + weekMeta.title + '). ' +
+    'Day ' + dayNum + ' of the week. ' + completedDays + ' of ' + totalDays + ' total days completed. ' +
+    (isRestDay ? 'Today is a rest day - remind him rest is part of getting stronger.' : 'Todays workout: ' + workoutType + '. Get him hyped for it!') + ' ' +
+
+    'Adjust tone: weeks 1-2 focus on building the habit, weeks 3-4 on momentum, weeks 5-6 on finishing strong like a beast. ' +
+
+    'Respond ONLY with a JSON object like: {"message":"your message here"}';
+
+  fetch('https://pound-for-pound-api-ejdqaeehcwb7c4fv.eastus-01.azurewebsites.net/api/motivation', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'gemini',
+      max_tokens: 150,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    const raw = data.content && data.content[0] && data.content[0].text
+      ? data.content[0].text.trim() : null;
+    if (!raw) { el.textContent = MOTIVATION_FALLBACK; return; }
+    try {
+      const cleaned = raw.replace(/```json|```/g, '').trim();
+      const ai = JSON.parse(cleaned);
+      const msg = ai.message || MOTIVATION_FALLBACK;
+      el.textContent = msg;
+      el.classList.remove('motivation-placeholder');
+      try { localStorage.setItem(getMotivationCacheKey(), msg); } catch(e) {}
+    } catch(e) {
+      // Raw text fallback if JSON parse fails
+      el.textContent = raw.length < 300 ? raw : MOTIVATION_FALLBACK;
+      el.classList.remove('motivation-placeholder');
+    }
+  })
+  .catch(() => {
+    el.textContent = MOTIVATION_FALLBACK;
+    el.classList.remove('motivation-placeholder');
+  });
+}
+
+// ═══════════════════════════════════════════
 // INIT — wait for Firebase module to expose globals, then load
 // ═══════════════════════════════════════════
 function waitForFirebaseAndLoad(attempts = 0) {
@@ -2242,6 +2327,7 @@ function waitForFirebaseAndLoad(attempts = 0) {
     currentWeek = state.currentWeek || 1;
     document.getElementById('loadingOverlay').style.display = 'none';
     renderAll();
+    loadMotivation();
   }
 }
 waitForFirebaseAndLoad();
